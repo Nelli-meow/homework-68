@@ -1,72 +1,82 @@
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import axiosApi from '../../axiosAPI.ts';
-import { RootState } from '../../app/store.ts';
+import axiosApi from '../../axiosAPI';
+import { ITask } from '../../types';
 
 interface TaskState {
-  taskValue: string;
-  status: boolean;
+  tasks: ITask[];
+  newTaskText: string;
   isLoading: boolean;
   error: boolean;
 }
 
 const initialState: TaskState = {
-  taskValue: '',
-  status: false,
+  tasks: [],
+  newTaskText: '',
   isLoading: false,
   error: false,
 };
 
-export const fetchTask = createAsyncThunk('task/fetchTask', async () => {
-  const { data: task } = await axiosApi<string | null>('task.json');
-  return task ;
+export const fetchTask = createAsyncThunk<ITask[]>('task/fetchTask', async () => {
+  const { data } = await axiosApi<ITask[]>('task.json');
+  console.log('Fetched tasks:', data);
+
+  const tasksFromApi = Object.keys(data).map(taskKey => {
+    const task = { ...data[taskKey] };
+
+    return {
+      id: taskKey,
+      ...task,
+    };
+  });
+
+  return tasksFromApi || [];
 });
 
-const changeTaskValue = createAsyncThunk<void, void, {state: RootState}>('task/changeTaskValue', async (_arg, thunkAPI) => {
-  const currentTaskValueFromSTate = thunkAPI.getState().task.value;
-  await axiosApi.put('task.json', currentTaskValueFromSTate);
+
+export const deleteTask = createAsyncThunk<string, string>('task/deleteTask', async (id: string) => {
+  await axiosApi.delete(`task/${id}.json`);
+  return id;
 });
+
+
+export const addNewTask = createAsyncThunk<ITask, string>('task/addNewTask', async (text: string) => {
+  await axiosApi.post('task.json', { text, status: false });
+
+  return { id: new Date().toISOString(), text, status: false };
+});
+
 
 export const TaskAppSlice = createSlice({
   name: 'task',
   initialState,
   reducers: {
-    addTask: (state, action: PayloadAction<string>) => {
-      if (state.taskValue.length > 0) {
-        state.taskValue += `, ${action.payload}`;
-      } else {
-        state.taskValue = action.payload;
-      }
-    }
+    setNewTaskText: (state, action: PayloadAction<string>) => {
+      state.newTaskText = action.payload;
+    },
   },
-
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTask.pending,(state) => {
+      .addCase(fetchTask.pending, (state) => {
         state.isLoading = true;
         state.error = false;
       })
-      .addCase(fetchTask.fulfilled,(state, action) => {
-      state.isLoading = false;
-      state.taskValue = action.payload;
-    })
-      .addCase(fetchTask.rejected,(state) => {
-      state.isLoading = false;
-      state.error = false;
-    })
-      .addCase(changeTaskValue.pending,(state) => {
-      state.isLoading = true;
-      state.error = false;
-    })
-      .addCase(changeTaskValue.fulfilled,(state, action) => {
+      .addCase(fetchTask.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.taskValue = action.payload;
+        state.tasks = action.payload;
       })
-      .addCase(changeTaskValue.rejected,(state) => {
+      .addCase(fetchTask.rejected, (state) => {
         state.isLoading = false;
-        state.error = false;
+        state.error = true;
+      })
+      .addCase(addNewTask.fulfilled, (state, action) => {
+        state.tasks.push(action.payload);
+        state.newTaskText = '';
+      })
+      .addCase(deleteTask.fulfilled, (state, action) => {
+        state.tasks = state.tasks.filter((task) => task.id !== action.payload);
       });
-
-  }
+  },
 });
 
+export const { setNewTaskText } = TaskAppSlice.actions;
 export const taskReducer = TaskAppSlice.reducer;
