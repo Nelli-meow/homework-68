@@ -2,7 +2,8 @@ import * as React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../../app/store.ts';
 import { useEffect } from 'react';
-import { fetchTask, deleteTask, addNewTask } from './TaskAppSlice.ts';
+import { fetchTask, setNewTaskText, deleteTask, addNewTask, updateTaskStatus } from './TaskAppSlice.ts';
+import { ITask } from '../../types';
 
 const TaskApp = () => {
   const tasks = useSelector((state: RootState) => state.task.tasks);
@@ -17,6 +18,7 @@ const TaskApp = () => {
   const onAddTask = () => {
     if (newTaskText.trim()) {
       dispatch(addNewTask(newTaskText));
+      dispatch(setNewTaskText(''));
     }
   };
 
@@ -24,10 +26,15 @@ const TaskApp = () => {
     dispatch(setNewTaskText(e.target.value));
   };
 
+  const handleToggleTaskStatus = (task: ITask) => {
+    dispatch(updateTaskStatus({ id: task.id, text: task.text, status: !task.status }));
+  };
+
 
   const onDeleteTask = (id: string) => {
     dispatch(deleteTask(id));
   };
+
 
   return (
     <div className="container">
@@ -61,6 +68,8 @@ const TaskApp = () => {
                   <input
                     className="form-check-input"
                     type="checkbox"
+                    checked={task.status}
+                    onChange={() => handleToggleTaskStatus(task)}
                   />
                 </div>
               </div>

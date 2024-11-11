@@ -4,16 +4,16 @@ import { ITask } from '../../types';
 
 interface TaskState {
   tasks: ITask[];
-  newTaskText: string;
   isLoading: boolean;
   error: boolean;
+  newTaskText: string;
 }
 
 const initialState: TaskState = {
   tasks: [],
-  newTaskText: '',
   isLoading: false,
   error: false,
+  newTaskText: ''
 };
 
 export const fetchTask = createAsyncThunk<ITask[]>('task/fetchTask', async () => {
@@ -40,10 +40,19 @@ export const deleteTask = createAsyncThunk<string, string>('task/deleteTask', as
 
 
 export const addNewTask = createAsyncThunk<ITask, string>('task/addNewTask', async (text: string) => {
-  await axiosApi.post('task.json', { text, status: false });
+    const newTask = { text, status: false };
+    const { data } = await axiosApi.post('task.json', newTask);
+    return { id: data.name, ...newTask };
+  }
+);
 
-  return { id: new Date().toISOString(), text, status: false };
-});
+export const updateTaskStatus = createAsyncThunk<ITask, { id: string, text: string, status: boolean }>(
+  'task/updateTaskStatus',
+  async ({ id, text, status }) => {
+    await axiosApi.put(`task/${id}.json`, { text, status });
+    return { id, status };
+  }
+);
 
 
 export const TaskAppSlice = createSlice({
@@ -52,6 +61,12 @@ export const TaskAppSlice = createSlice({
   reducers: {
     setNewTaskText: (state, action: PayloadAction<string>) => {
       state.newTaskText = action.payload;
+    },
+    toggleTaskStatus: (state, action: PayloadAction<string>) => {
+      const task = state.tasks.find((task) => task.id === action.payload);
+      if (task) {
+        task.status = !task.status;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -70,11 +85,17 @@ export const TaskAppSlice = createSlice({
       })
       .addCase(addNewTask.fulfilled, (state, action) => {
         state.tasks.push(action.payload);
-        state.newTaskText = '';
       })
       .addCase(deleteTask.fulfilled, (state, action) => {
         state.tasks = state.tasks.filter((task) => task.id !== action.payload);
-      });
+      })
+      .addCase(updateTaskStatus.fulfilled, (state, action) => {
+      const task = state.tasks.find((task) => task.id === action.payload.id);
+      if (task) {
+        task.status = action.payload.status;
+      }
+    });
+
   },
 });
 
