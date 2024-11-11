@@ -54,7 +54,6 @@ export const updateTaskStatus = createAsyncThunk<ITask, { id: string, text: stri
   }
 );
 
-
 export const TaskAppSlice = createSlice({
   name: 'task',
   initialState,
@@ -95,7 +94,6 @@ export const TaskAppSlice = createSlice({
         task.status = action.payload.status;
       }
     });
-
   },
 });
 
